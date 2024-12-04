@@ -93,5 +93,39 @@ class TestMergeRSSAndTranscripts(unittest.TestCase):
 
             self.assertEqual(mock_file_open.call_count, len(self.mock_rss_data))
 
+    @patch("tldhuber.utils.merge_rss_and_transcripts.scrape_rss_data",
+           return_value=pd.DataFrame([{'Title': 'Episode 1'}]))
+    @patch("tldhuber.utils.merge_rss_and_transcripts.get_playlist_items", return_value=[
+        {"contentDetails": {}, "snippet": {}},
+    ])
+    def test_missing_youtube_data_fields(self, _, __):
+        """Test merging when critical YouTube data fields are missing."""
+        with self.assertRaises(KeyError,
+                               msg="Should raise KeyError for missing YouTube data fields"):
+            merge_rss_and_transcripts("fake_api_key", "fake_channel_id", "fake_rss_feed_url")
+
+    @patch("tldhuber.utils.merge_rss_and_transcripts.scrape_rss_data",
+           side_effect=Exception("RSS Fetch Failed"))
+    def test_error_handling_api_failures(self, _):
+        """Test error handling for external API failures."""
+        with self.assertRaises(Exception, msg="Should properly handle API failures"):
+            merge_rss_and_transcripts("fake_api_key", "fake_channel_id", "fake_rss_feed_url")
+
+    @patch("tldhuber.utils.merge_rss_and_transcripts.scrape_rss_data",
+           side_effect=Exception("Invalid RSS URL"))
+    def test_nonexistent_rss_feed_url(self, _):
+        """Test behavior with an invalid or inaccessible RSS feed URL."""
+        with self.assertRaises(Exception,
+                               msg="Should raise an exception for invalid RSS feed URLs"):
+            merge_rss_and_transcripts("fake_api_key", "fake_channel_id", "fake_rss_feed_url")
+
+    @patch("tldhuber.utils.merge_rss_and_transcripts.get_channel_upload_playlist_id_by_channelid",
+           side_effect=Exception("Invalid Channel ID"))
+    def test_invalid_youtube_channel_id(self, _):
+        """Test behavior with an invalid YouTube channel ID."""
+        with self.assertRaises(Exception,
+                               msg="Should raise an exception for invalid YouTube channel IDs"):
+            merge_rss_and_transcripts("fake_api_key", "fake_channel_id", "fake_rss_feed_url")
+
 if __name__ == "__main__":
     unittest.main()
